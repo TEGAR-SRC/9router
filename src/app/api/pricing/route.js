@@ -6,8 +6,13 @@ import { getDefaultPricing } from "open-sse/providers/pricing.js";
  * GET /api/pricing
  * Get current pricing configuration (merged user + defaults)
  */
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get("defaults") === "true") {
+      const defaultPricing = getDefaultPricing();
+      return NextResponse.json(defaultPricing);
+    }
     const pricing = await getPricing();
     return NextResponse.json(pricing);
   } catch (error) {
