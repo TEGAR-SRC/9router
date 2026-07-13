@@ -1,0 +1,27 @@
+
+> 9router-app@0.5.30 dev
+> next dev --port 20127
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:20127
+- Network:       http://192.168.0.2:20127
+✓ Ready in 751ms
+- Experiments (use with caution):
+  · optimizePackageImports
+  · proxyClientMaxBodySize: "128mb"
+
+[DB] Driver: better-sqlite3 | file: /home/jules/.9router/db/data.sqlite
+ GET /login 200 in 2.6s (next.js: 714ms, proxy.ts: 846ms, application-code: 1030ms)
+[AutoPing] scheduler started
+ GET /api/auth/status 200 in 635ms (next.js: 553ms, proxy.ts: 28ms, application-code: 55ms)
+ POST /api/auth/login 200 in 114ms (next.js: 79ms, proxy.ts: 9ms, application-code: 26ms)
+ GET /dashboard 200 in 783ms (next.js: 183ms, proxy.ts: 17ms, application-code: 582ms)
+ GET /api/auth/status 200 in 98ms (next.js: 41ms, proxy.ts: 34ms, application-code: 23ms)
+ GET /dashboard/settings/pricing 200 in 494ms (next.js: 62ms, proxy.ts: 24ms, application-code: 408ms)
+○ Compiling /api/settings ...
+ GET /api/pricing 200 in 367ms (next.js: 243ms, proxy.ts: 25ms, application-code: 99ms)
+ GET /api/pricing?defaults=true 200 in 434ms (next.js: 38ms, proxy.ts: 359ms, application-code: 37ms)
+ GET /api/pricing 200 in 23ms (next.js: 7ms, proxy.ts: 11ms, application-code: 5ms)
+ GET /api/pricing?defaults=true 200 in 32ms (next.js: 14ms, proxy.ts: 10ms, application-code: 7ms)
+ GET /api/pricing 200 in 50ms (next.js: 15ms, proxy.ts: 26ms, application-code: 8ms)
+ GET /api/pricing?defaults=true 200 in 106ms (next.js: 68ms, proxy.ts: 19ms, application-code: 19ms)
