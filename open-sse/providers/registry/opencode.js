@@ -9,6 +9,10 @@ export default {
     icon: "terminal",
     color: "#E87040",
     textIcon: "OC",
+    notice: {
+      apiKeyUrl: "https://opencode.ai/auth",
+      text: "OpenCode Zen now requires a personal API key on gated endpoints (chat + responses). Create one at opencode.ai/auth, then add it as a connection or set OPENCODE_API_KEY. Without a key, requests fall back to keyless \"public\" and upstream returns 401/403.",
+    },
   },
   category: "free",
   noAuth: true,

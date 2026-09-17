@@ -7,6 +7,11 @@ import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 
 const OPENCODE_UA = "opencode/1.18.31";
+// Personal Zen API key (https://opencode.ai/auth). Upstream no longer accepts
+// the keyless "public" token on paid-gated endpoints:
+// - /zen/v1/chat/completions  -> 401 AuthError "Missing API key."
+// - /zen/v1/responses         -> 403 FreeTierError "can only be used from within OpenCode"
+const OPENCODE_API_KEY_ENV = "OPENCODE_API_KEY";
 const MAX_SESSION_LENGTH = 256;
 const SESSION_HEADER = "x-opencode-session";
 const SESSION_FIELD = "_opencodeSession";
@@ -81,6 +86,24 @@ export function translateSessionId(sessionId, clientTool = "") {
     randomPart += BASE62_CHARS[digest[i] % 62];
   }
   return `ses_${timeHex}${randomPart}`;
+}
+
+function isPlaceholderToken(value) {
+  if (typeof value !== "string") return true;
+  const token = value.trim();
+  return !token || token.toLowerCase() === "public";
+}
+
+// Resolve the Zen API token: stored dashboard connection key first,
+// then OPENCODE_API_KEY env, finally the legacy keyless "public" fallback
+// (which upstream now rejects on gated endpoints).
+export function resolveOpencodeToken(credentials) {
+  for (const candidate of [credentials?.accessToken, credentials?.apiKey]) {
+    if (!isPlaceholderToken(candidate)) return candidate.trim();
+  }
+  const envToken = typeof process !== "undefined" ? process.env?.[OPENCODE_API_KEY_ENV] : null;
+  if (!isPlaceholderToken(envToken)) return envToken.trim();
+  return "public";
 }
 
 function normalizeSession(value) {
@@ -211,7 +234,7 @@ export class OpenCodeExecutor extends BaseExecutor {
 
     return {
       "Content-Type": "application/json",
-      "Authorization": "Bearer public",
+      "Authorization": `Bearer ${resolveOpencodeToken(credentials)}`,
       "User-Agent": isOpencodeDownstream ? downstreamUa : OPENCODE_UA,
       "x-opencode-client": lower["x-opencode-client"] || "desktop",
       "x-opencode-session": session,

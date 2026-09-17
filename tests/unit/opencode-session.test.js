@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchMock } = vi.hoisted(() => ({
   fetchMock: vi.fn(),
@@ -14,6 +14,7 @@ import {
   generateSessionId,
   generateRequestId,
   translateSessionId,
+  resolveOpencodeToken,
 } from "../../open-sse/executors/opencode.js";
 
 function makeCredentials(overrides = {}) {
@@ -198,5 +199,45 @@ describe("OpenCode Free User-Agent Validation", () => {
 
     const headersFuture = executor.buildHeaders({ rawHeaders: { "user-agent": "opencode/1.19.0" } });
     expect(headersFuture["User-Agent"]).toBe("opencode/1.19.0");
+  });
+});
+
+describe("OpenCode Zen API token resolution", () => {
+  const ENV_KEY = "OPENCODE_API_KEY";
+  let savedEnv;
+
+  beforeEach(() => {
+    savedEnv = process.env[ENV_KEY];
+    delete process.env[ENV_KEY];
+  });
+
+  afterEach(() => {
+    if (savedEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = savedEnv;
+  });
+
+  it("falls back to public when no key is configured", () => {
+    expect(resolveOpencodeToken({})).toBe("public");
+    expect(resolveOpencodeToken({ accessToken: "public" })).toBe("public");
+    expect(resolveOpencodeToken(null)).toBe("public");
+  });
+
+  it("prefers a stored connection key over public", () => {
+    expect(resolveOpencodeToken({ accessToken: "sk-zen-123" })).toBe("sk-zen-123");
+    expect(resolveOpencodeToken({ apiKey: "sk-zen-456" })).toBe("sk-zen-456");
+    expect(resolveOpencodeToken({ accessToken: "public", apiKey: "sk-zen-789" })).toBe("sk-zen-789");
+  });
+
+  it("uses OPENCODE_API_KEY env when no stored key exists", () => {
+    process.env[ENV_KEY] = "sk-env-abc";
+    expect(resolveOpencodeToken({})).toBe("sk-env-abc");
+    expect(resolveOpencodeToken({ accessToken: "sk-stored" })).toBe("sk-stored");
+  });
+
+  it("sends the resolved token as Bearer in buildHeaders", () => {
+    const executor = getExecutor("opencode");
+    expect(executor.buildHeaders({ accessToken: "sk-zen-123" })["Authorization"]).toBe("Bearer sk-zen-123");
+    process.env[ENV_KEY] = "sk-env-abc";
+    expect(executor.buildHeaders({})["Authorization"]).toBe("Bearer sk-env-abc");
   });
 });
