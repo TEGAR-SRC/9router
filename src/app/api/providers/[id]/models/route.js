@@ -11,6 +11,7 @@ import { resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { resolveGrokCliModels } from "open-sse/services/grokCliModels.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { resolveCursorModels } from "open-sse/services/cursorModels.js";
+import { resolveClineModels, resolveClinepassModels } from "open-sse/services/clinepassModels.js";
 
 const GEMINI_CLI_MODELS_URL = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels";
 
@@ -79,18 +80,6 @@ const createOpenAIModelsConfig = (url) => ({
   parseResponse: parseOpenAIStyleModels
 });
 
-const resolveQwenModelsUrl = (connection) => {
-  const fallback = "https://portal.qwen.ai/v1/models";
-  const raw = connection?.providerSpecificData?.resourceUrl;
-  if (!raw || typeof raw !== "string") return fallback;
-  const value = raw.trim();
-  if (!value) return fallback;
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return `${value.replace(/\/$/, "")}/models`;
-  }
-  return `https://${value.replace(/\/$/, "")}/v1/models`;
-};
-
 const getStaticProviderModels = (providerId) =>
   getModelsByProviderId(providerId).map((model) => ({
     ...model,
@@ -155,14 +144,6 @@ const PROVIDER_MODELS_CONFIG = {
     headers: { "Content-Type": "application/json" },
     authQuery: "key", // Use query param for API key
     parseResponse: (data) => data.models || []
-  },
-  qwen: {
-    url: "https://portal.qwen.ai/v1/models",
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    authHeader: "Authorization",
-    authPrefix: "Bearer ",
-    parseResponse: (data) => data.data || []
   },
   codex: {
     customResolver: buildOAuthResolver({
@@ -307,6 +288,37 @@ const PROVIDER_MODELS_CONFIG = {
     },
   },
 
+  // Cline/ClinePass share api.cline.bot/api/v1/models. The service layer already
+  // handles Bearer-vs-`workos:` auth and swallows failures into null, so these follow
+  // the cursor direct pattern (no refreshFn) and only differ in filtering:
+  // cline returns the whole catalog verbatim, clinepass keeps cline-pass/* only.
+  cline: {
+    customResolver: async (connection) => {
+      const result = await resolveClineModels({
+        accessToken: connection.accessToken,
+        apiKey: connection.apiKey,
+      });
+      if (result?.models?.length) return { models: result.models };
+      return {
+        models: getStaticProviderModels("cline"),
+        warning: "Cline returned no live models; falling back to static catalog.",
+      };
+    },
+  },
+  clinepass: {
+    customResolver: async (connection) => {
+      const result = await resolveClinepassModels({
+        accessToken: connection.accessToken,
+        apiKey: connection.apiKey,
+      });
+      if (result?.models?.length) return { models: result.models };
+      return {
+        models: getStaticProviderModels("clinepass"),
+        warning: "ClinePass returned no live models; falling back to static catalog.",
+      };
+    },
+  },
+
   // Custom resolvers (non-OpenAI-shaped APIs / token-refresh flows)
   kiro: {
     customResolver: async (connection) => {
@@ -356,6 +368,7 @@ const PROVIDER_MODELS_CONFIG = {
     customResolver: async (connection) => {
       const credentials = {
         accessToken: connection.accessToken,
+        apiKey: connection.apiKey,
         refreshToken: connection.refreshToken,
         email: connection.email,
         displayName: connection.displayName,
@@ -571,9 +584,6 @@ export async function GET(request, { params }) {
 
     // Build request URL
     let url = config.url;
-    if (connection.provider === "qwen") {
-      url = resolveQwenModelsUrl(connection);
-    }
     if (config.authQuery) {
       url += `?${config.authQuery}=${token}`;
     }
